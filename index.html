@@ -82,9 +82,37 @@
                 return;
             }
             const src = sources[idx++];
-            loadScript(src, markReady, tryNext);
+            loadScript(src, function () {
+                // ✨ NEW: โหลดปลั๊กอิน chartjs-plugin-datalabels ต่อ เพื่อให้กราฟแสดงตัวเลข/เปอร์เซ็นต์บนกราฟได้โดยตรง
+                loadDatalabelsPlugin(markReady);
+            }, tryNext);
         }
         tryNext();
+
+        function loadDatalabelsPlugin(done) {
+            const dlSources = [
+                'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js',
+                'https://unpkg.com/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js'
+            ];
+            let dlIdx = 0;
+            function tryNextDl() {
+                if (dlIdx >= dlSources.length) {
+                    console.error('ไม่สามารถโหลดปลั๊กอิน datalabels ได้ กราฟจะยังทำงานได้ปกติแต่ไม่แสดงตัวเลขบนกราฟ');
+                    done();
+                    return;
+                }
+                const src = dlSources[dlIdx++];
+                loadScript(src, function () {
+                    if (typeof ChartDataLabels !== 'undefined' && typeof Chart !== 'undefined') {
+                        Chart.register(ChartDataLabels);
+                        window.__datalabelsReady = true;
+                    }
+                    done();
+                }, tryNextDl);
+            }
+            tryNextDl();
+        }
     })();
     </script>
 <style>
@@ -232,15 +260,64 @@ select {
 /* ===================================================
    🏠 หน้าหลัก (Public Dashboard) + 🛠️ หน้าจัดการระบบ (Admin)
 =================================================== */
-.stat-card{ border-radius:1.25rem; padding:1rem 1.25rem; position:relative; overflow:hidden; }
-.stat-card .stat-num{ font-size:1.9rem; font-weight:900; line-height:1.1; }
+.stat-card{ border-radius:1.25rem; padding:1rem 1.25rem; position:relative; overflow:hidden; transition:transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease; }
+.stat-card:hover{ transform:translateY(-4px) scale(1.015); box-shadow:0 12px 24px -8px rgba(15,23,42,.18); }
+.stat-card .stat-num{ font-size:1.9rem; font-weight:900; line-height:1.1; font-variant-numeric: tabular-nums; }
 .stat-card .stat-label{ font-size:.72rem; font-weight:700; opacity:.85; }
-.stat-card .stat-percent{ font-size:.7rem; font-weight:700; }
+.stat-card .stat-percent{ font-size:.7rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; }
+.stat-card::after{ content:''; position:absolute; inset:0; background:linear-gradient(120deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 40%); pointer-events:none; opacity:.6; }
+.stat-card-icon{ position:absolute; right:.6rem; top:.6rem; font-size:1.6rem; opacity:.16; transform:rotate(-8deg); }
 .level-bar-track{ background:#eef2f7; border-radius:999px; height:10px; overflow:hidden; display:flex; }
-.level-bar-fill-present{ background:#059669; height:100%; }
-.level-bar-fill-absent{ background:#cd0000; height:100%; }
-.level-bar-fill-pending{ background:#cbd5e1; height:100%; }
+.level-bar-fill-present{ background:#059669; height:100%; transition:width 1s cubic-bezier(.22,1,.36,1); }
+.level-bar-fill-absent{ background:#cd0000; height:100%; transition:width 1s cubic-bezier(.22,1,.36,1); }
+.level-bar-fill-pending{ background:#cbd5e1; height:100%; transition:width 1s cubic-bezier(.22,1,.36,1); }
 #liveClockTime{ font-variant-numeric: tabular-nums; letter-spacing:.03em; }
+
+/* ✨ NEW: อนิเมชั่นเข้าฉากแบบไล่ลำดับ (staggered fade-up) สำหรับการ์ดและส่วนต่าง ๆ ของ Dashboard */
+@keyframes fadeUpIn{
+    from{ opacity:0; transform:translateY(14px); }
+    to{ opacity:1; transform:translateY(0); }
+}
+.dash-animate{ animation:fadeUpIn .55s cubic-bezier(.22,1,.36,1) both; }
+.dash-animate:nth-child(1){ animation-delay:.02s; }
+.dash-animate:nth-child(2){ animation-delay:.09s; }
+.dash-animate:nth-child(3){ animation-delay:.16s; }
+.dash-animate:nth-child(4){ animation-delay:.23s; }
+
+/* ✨ การ์ดใหญ่แต่ละส่วนในหน้า Dashboard สาธารณะ ให้ทยอยปรากฏขึ้นทีละใบ */
+#home-tab > div{ animation:fadeUpIn .6s cubic-bezier(.22,1,.36,1) both; }
+#home-tab > div:nth-of-type(1){ animation-delay:.02s; }
+#home-tab > div:nth-of-type(2){ animation-delay:.12s; }
+#home-tab > div:nth-of-type(3){ animation-delay:.22s; }
+#home-tab > div:nth-of-type(4){ animation-delay:.32s; }
+
+@keyframes pulseGlowRose{
+    0%,100%{ box-shadow:0 0 0 0 rgba(205,0,0,.28); }
+    50%{ box-shadow:0 0 0 8px rgba(205,0,0,0); }
+}
+.stat-card-alert{ animation:pulseGlowRose 2.2s ease-in-out infinite; }
+
+@keyframes spinRefresh{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+.refresh-spinning{ animation:spinRefresh .7s linear infinite; }
+
+@keyframes shimmerSkeleton{
+    0%{ background-position:-200% 0; }
+    100%{ background-position:200% 0; }
+}
+.skeleton-block{
+    background:linear-gradient(90deg, #eef1f5 25%, #f7f9fb 37%, #eef1f5 63%);
+    background-size:400% 100%;
+    animation:shimmerSkeleton 1.4s ease infinite;
+    border-radius:.6rem;
+}
+
+/* แถบสถานะ "อัปเดตล่าสุด" มุมขวาบนของการ์ดสรุปภาพรวม */
+.live-updated-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:.65rem; font-weight:700;
+    color:#0369a1; background:#e0f2fe; border:1px solid #bae6fd; padding:.25rem .6rem; border-radius:999px;
+}
+.live-updated-dot{ width:6px; height:6px; border-radius:999px; background:#0ea5e9; animation:blinkDot 1.6s ease-in-out infinite; }
+@keyframes blinkDot{ 0%,100%{ opacity:1; } 50%{ opacity:.25; } }
 
 .admin-subtab-btn{ padding:.5rem 1rem; font-size:.75rem; font-weight:700; border-radius:.75rem; cursor:pointer; transition:all .15s; border:1px solid transparent; }
 .admin-subtab-btn.active{ background:#1e293b; color:#fff; box-shadow:0 4px 10px rgba(15,23,42,.15); }
@@ -446,31 +523,43 @@ select {
             </div>
 
             <div class="bg-white rounded-3xl shadow-lg border border-blue-50 p-3 sm:p-6">
-                <div class="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
-                    <div class="bg-indigo-50 text-indigo-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-chart-pie"></i></div>
-                    <div>
-                        <h2 class="text-base sm:text-lg font-bold text-slate-900">ภาพรวมทั้งโรงเรียน</h2>
-                        <p id="homeSummaryDateLabel" class="text-xs text-slate-400 mt-0.5">สรุปข้อมูลประจำวันที่ -</p>
+                <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4 flex-wrap">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-indigo-50 text-indigo-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-chart-pie"></i></div>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-bold text-slate-900">ภาพรวมทั้งโรงเรียน</h2>
+                            <p id="homeSummaryDateLabel" class="text-xs text-slate-400 mt-0.5">สรุปข้อมูลประจำวันที่ -</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="liveUpdatedBadge" class="live-updated-badge"><span class="live-updated-dot"></span><span id="liveUpdatedText">กำลังโหลด...</span></span>
+                        <button type="button" onclick="loadPublicDashboard(true)" id="dashRefreshBtn" title="รีเฟรชข้อมูลตอนนี้" class="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer">
+                            <i class="fa-solid fa-arrows-rotate text-xs"></i>
+                        </button>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-                    <div class="stat-card bg-blue-50 border border-blue-100">
+                    <div class="stat-card bg-blue-50 border border-blue-100 dash-animate">
+                        <i class="fa-solid fa-users stat-card-icon text-blue-700"></i>
                         <p class="stat-label text-blue-700">ครูที่ปรึกษาทั้งหมด</p>
                         <p id="homeTotalNum" class="stat-num text-blue-900">0</p>
-                        <p class="stat-percent text-blue-500">100%</p>
+                        <p class="stat-percent text-blue-500"><i class="fa-solid fa-chalkboard-user"></i> 100%</p>
                     </div>
-                    <div class="stat-card bg-emerald-50 border border-emerald-100">
+                    <div class="stat-card bg-emerald-50 border border-emerald-100 dash-animate">
+                        <i class="fa-solid fa-circle-check stat-card-icon text-emerald-700"></i>
                         <p class="stat-label text-emerald-700">ปฏิบัติหน้าที่</p>
                         <p id="homePresentNum" class="stat-num text-emerald-700">0</p>
-                        <p id="homePresentPercent" class="stat-percent text-emerald-600">0%</p>
+                        <p id="homePresentPercent" class="stat-percent text-emerald-600"><i class="fa-solid fa-arrow-up"></i> 0%</p>
                     </div>
-                    <div class="stat-card bg-rose-50 border border-rose-100">
-                        <p class="stat-label text-rose-700">ไม่ลงแถว</p>
+                    <div class="stat-card bg-rose-50 border border-rose-100 dash-animate">
+                        <i class="fa-solid fa-circle-exclamation stat-card-icon text-rose-700"></i>
+                        <p class="stat-label text-rose-700">ไม่ลงแถว/โฮมรูม</p>
                         <p id="homeAbsentNum" class="stat-num text-rose-700">0</p>
                         <p id="homeAbsentPercent" class="stat-percent text-rose-600">0%</p>
                     </div>
-                    <div class="stat-card bg-slate-100 border border-slate-200">
+                    <div id="homePendingCard" class="stat-card bg-slate-100 border border-slate-200 dash-animate">
+                        <i class="fa-solid fa-hourglass-half stat-card-icon text-slate-600"></i>
                         <p class="stat-label text-slate-600">ยังไม่บันทึก</p>
                         <p id="homePendingNum" class="stat-num text-slate-700">0</p>
                         <p id="homePendingPercent" class="stat-percent text-slate-500">0%</p>
@@ -499,7 +588,7 @@ select {
                     <div class="bg-emerald-50 text-emerald-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-chart-column"></i></div>
                     <div>
                         <h2 class="text-base sm:text-lg font-bold text-slate-900">กราฟสรุปรวมทุกระดับชั้น</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">ปฏิบัติหน้าที่ / ไม่ลงแถว แบ่งตามสาเหตุ (ภาพรวมทั้งโรงเรียน)</p>
+                        <p class="text-xs text-slate-400 mt-0.5">ปฏิบัติหน้าที่ / ไม่ลงแถว/โฮมรูม / ยังไม่บันทึก แบ่งตามสาเหตุ (ภาพรวมทั้งโรงเรียน)</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -688,7 +777,7 @@ select {
         <th class="p-2.5 text-left text-[10px] font-bold text-slate-600 whitespace-nowrap">ชื่อครูที่ปรึกษา</th>
         <th class="p-2.5 text-center text-[10px] font-bold text-slate-600 w-[14%] whitespace-nowrap">รวม</th>
         <th class="p-2.5 text-center text-[10px] font-bold text-slate-600 w-[16%] whitespace-nowrap">ปฏิบัติหน้าที่</th>
-        <th class="p-2.5 text-center text-[10px] font-bold text-slate-600 w-[16%] whitespace-nowrap">ไม่ลงแถว</th>
+        <th class="p-2.5 text-center text-[10px] font-bold text-slate-600 w-[16%] whitespace-nowrap">ไม่ลงแถว/โฮมรูม</th>
     </tr>
 </thead>
                             <tbody id="statsTableBody"></tbody>
@@ -1513,7 +1602,7 @@ select {
                     let statusColor = "text-slate-600 bg-slate-100";
                     if (item.status === "ปฏิบัติหน้าที่") {
                         statusColor = "text-emerald-700 bg-emerald-50 border border-emerald-200";
-                    } else if (item.status === "ไม่ลงแถว") {
+                    } else if (item.status === "ไม่ลงแถว/โฮมรูม") {
                         statusColor = "text-rose-700 bg-rose-50 border border-rose-200";
                     }
 
@@ -1587,7 +1676,7 @@ select {
                 }
 
                 data.forEach((item, index) => {
-                    const isAbsent = item.existingStatus === "not-present" || item.existingStatus === "ไม่ลงแถว";
+                    const isAbsent = item.existingStatus === "not-present" || item.existingStatus === "ไม่ลงแถว/โฮมรูม";
                     
                     const tr = document.createElement('tr');
                     tr.className = "border-b border-slate-200 hover:bg-slate-50/50 transition-colors";
@@ -1622,28 +1711,44 @@ select {
                                     <input
                                         type="radio"
                                         name="status_${index}"
-                                        value="ไม่ลงแถว"
+                                        value="ไม่ลงแถว/โฮมรูม"
                                         ${isAbsent ? 'checked' : ''}
                                         onchange="toggleReasonField(${index}, true)"
                                         class="accent-rose-600">
-                                    <span>ไม่ลงแถว</span>
+                                    <span>ไม่ลงแถว/โฮมรูม</span>
                                 </label>
                             </div>
                         </td>
 
                         <td class="p-1">
+                            ${(() => {
+                                const predefinedReasons = ['ขออนุญาต','ไปราชการ','ลาป่วย','สาย','ประชุม','ลากิจ'];
+                                const isCustom = item.existingReason && item.existingReason !== '-' && !predefinedReasons.includes(item.existingReason);
+                                return `
                             <select
                                 id="reason_${index}"
                                 ${!isAbsent ? 'disabled' : ''}
+                                onchange="toggleCustomReasonInput(${index})"
                                 class="w-full border rounded-lg p-1 transition-all
                                 ${!isAbsent
                                     ? 'bg-slate-100 opacity-50 border-slate-200 text-slate-400 cursor-not-allowed'
                                     : 'bg-white border-rose-300 text-rose-900 focus:ring-2 focus:ring-rose-100'}">
-                                <option value="ลาป่วย" ${item.existingReason === 'ลาป่วย' ? 'selected' : ''}>ลาป่วย</option>
-                                <option value="ลากิจ" ${item.existingReason === 'ลากิจ' ? 'selected' : ''}>ลากิจ</option>
-                                <option value="สาย" ${item.existingReason === 'สาย' ? 'selected' : ''}>มาสาย</option>
+                                <option value="ขออนุญาต" ${item.existingReason === 'ขออนุญาต' ? 'selected' : ''}>ขออนุญาต</option>
                                 <option value="ไปราชการ" ${item.existingReason === 'ไปราชการ' ? 'selected' : ''}>ไปราชการ</option>
+                                <option value="ลาป่วย" ${item.existingReason === 'ลาป่วย' ? 'selected' : ''}>ลาป่วย</option>
+                                <option value="สาย" ${item.existingReason === 'สาย' ? 'selected' : ''}>มาสาย</option>
+                                <option value="ประชุม" ${item.existingReason === 'ประชุม' ? 'selected' : ''}>ประชุม</option>
+                                <option value="ลากิจ" ${item.existingReason === 'ลากิจ' ? 'selected' : ''}>ลากิจ</option>
+                                <option value="อื่นๆ" ${isCustom ? 'selected' : ''}>อื่น ๆ (ระบุ)</option>
                             </select>
+                            <input
+                                type="text"
+                                id="reasonOther_${index}"
+                                value="${isCustom ? item.existingReason.replace(/"/g, '&quot;') : ''}"
+                                placeholder="ระบุสาเหตุอื่น ๆ..."
+                                class="w-full border rounded-lg p-1 mt-1 text-xs transition-all bg-white border-rose-300 text-rose-900 focus:ring-2 focus:ring-rose-100 ${(isAbsent && isCustom) ? '' : 'hidden'}">
+                                `;
+                            })()}
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -1670,9 +1775,26 @@ select {
                 select.removeAttribute('disabled');
                 select.className = "w-full min-h-[44px] bg-white border-2 border-rose-400 text-rose-900 rounded-xl px-3 py-2 text-sm font-bold outline-hidden transition-all focus:border-rose-500 focus:ring-2 focus:ring-rose-100 shadow-xs animate-pulse";
                 setTimeout(() => select.classList.remove('animate-pulse'), 600);
+                toggleCustomReasonInput(index);
             } else {
                 select.setAttribute('disabled', 'true');
                 select.className = "w-full min-h-[44px] bg-slate-100 border border-slate-200 text-slate-400 rounded-xl px-3 py-2 text-sm opacity-40 cursor-not-allowed outline-hidden transition-all";
+                const otherInput = document.getElementById(`reasonOther_${index}`);
+                if (otherInput) otherInput.classList.add('hidden');
+            }
+        }
+
+        // 🆕 แสดง/ซ่อนช่องกรอกสาเหตุเอง เมื่อผู้ใช้เลือก "อื่น ๆ (ระบุ)" ในดรอปดาวน์เหตุผล
+        function toggleCustomReasonInput(index) {
+            const select = document.getElementById(`reason_${index}`);
+            const otherInput = document.getElementById(`reasonOther_${index}`);
+            if (!select || !otherInput) return;
+
+            if (select.value === 'อื่นๆ' && !select.disabled) {
+                otherInput.classList.remove('hidden');
+                setTimeout(() => otherInput.focus(), 50);
+            } else {
+                otherInput.classList.add('hidden');
             }
         }
 
@@ -1695,6 +1817,8 @@ select {
             const editDateInp = document.getElementById('editDateInput');
             const targetDate = editDateInp ? editDateInp.value : '';
 
+            let missingCustomReasonTeacher = '';
+
             for (let i = 0; i < rowsCount; i++) {
                 const classInput = document.querySelector(`input[name="class_${i}"]`);
                 const teacherInput = document.querySelector(`input[name="teacher_${i}"]`);
@@ -1705,10 +1829,32 @@ select {
                     const teacherName = teacherInput.value;
                     const status = statusInput.value;
                     const reasonSelect = document.getElementById(`reason_${i}`);
-                    const reason = status === "ไม่ลงแถว" && reasonSelect ? reasonSelect.value : "-";
+                    let reason = "-";
+
+                    if (status === "ไม่ลงแถว/โฮมรูม" && reasonSelect) {
+                        if (reasonSelect.value === 'อื่นๆ') {
+                            const otherInput = document.getElementById(`reasonOther_${i}`);
+                            const customText = otherInput ? otherInput.value.trim() : '';
+                            if (!customText && !missingCustomReasonTeacher) missingCustomReasonTeacher = teacherName;
+                            reason = customText || 'อื่น ๆ';
+                        } else {
+                            reason = reasonSelect.value;
+                        }
+                    }
 
                     attendanceData.push({ className, teacherName, status, reason });
                 }
+            }
+
+            if (missingCustomReasonTeacher) {
+                Swal.fire({
+                    title: 'กรุณาระบุสาเหตุ',
+                    text: `กรุณาระบุสาเหตุ "อื่น ๆ" ให้ครบถ้วน (เริ่มจาก ${missingCustomReasonTeacher}) ก่อนบันทึกข้อมูล`,
+                    icon: 'warning',
+                    confirmButtonColor: '#0001cd'
+                });
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHtml; }
+                return;
             }
 
             fetch(WEB_APP_URL, {
@@ -1949,16 +2095,23 @@ select {
         // =================================================================
         // 🏠 หน้าหลัก (Public Dashboard) - ไม่ต้อง login
         // =================================================================
-        function loadPublicDashboard() {
+        function loadPublicDashboard(isManualRefresh) {
             const dateInput = document.getElementById('homeDateInput');
             const dateVal = dateInput && dateInput.value ? dateInput.value : '';
             const levelListEl = document.getElementById('homeLevelList');
+            const refreshBtn = document.getElementById('dashRefreshBtn');
+            const refreshIcon = refreshBtn ? refreshBtn.querySelector('i') : null;
+            const liveText = document.getElementById('liveUpdatedText');
+
+            if (refreshIcon) refreshIcon.classList.add('refresh-spinning');
+            if (liveText) liveText.textContent = 'กำลังอัปเดต...';
 
             fetch(`${WEB_APP_URL}?action=getPublicDashboard&date=${encodeURIComponent(dateVal)}`)
                 .then(res => res.json())
                 .then(data => {
                     if (!data || data.success === false) {
                         if (levelListEl) levelListEl.innerHTML = `<p class="text-xs text-rose-500 text-center py-6">ไม่สามารถโหลดข้อมูลได้: ${data && data.msg ? data.msg : 'ไม่ทราบสาเหตุ'}</p>`;
+                        if (liveText) liveText.textContent = 'โหลดข้อมูลล้มเหลว';
                         return;
                     }
 
@@ -1966,24 +2119,68 @@ select {
                     if (labelEl) labelEl.textContent = `สรุปข้อมูลประจำวันที่ ${formatThaiDateLabel(data.date)}`;
 
                     const ov = data.overall || { total: 0, present: 0, absent: 0, notRecorded: 0, percentPresent: 0, percentAbsent: 0, percentNotRecorded: 0 };
-                    setText('homeTotalNum', ov.total);
-                    setText('homePresentNum', ov.present);
-                    setText('homePresentPercent', ov.percentPresent + '%');
-                    setText('homeAbsentNum', ov.absent);
-                    setText('homeAbsentPercent', ov.percentAbsent + '%');
-                    setText('homePendingNum', ov.notRecorded);
+                    animateCountUp('homeTotalNum', ov.total);
+                    animateCountUp('homePresentNum', ov.present);
+                    setText('homePresentPercent', '<i class="fa-solid fa-arrow-up"></i> ' + ov.percentPresent + '%', true);
+                    animateCountUp('homeAbsentNum', ov.absent);
+                    setText('homeAbsentPercent', (ov.absent > 0 ? '<i class="fa-solid fa-arrow-trend-down"></i> ' : '') + ov.percentAbsent + '%', true);
+                    animateCountUp('homePendingNum', ov.notRecorded);
                     setText('homePendingPercent', ov.percentNotRecorded + '%');
+
+                    // 🆕 เตือนด้วยกรอบเรืองแสงเมื่อยังมีรายการที่ยังไม่บันทึกอยู่ (จุดที่มักถูกมองข้าม)
+                    const pendingCard = document.getElementById('homePendingCard');
+                    if (pendingCard) pendingCard.classList.toggle('stat-card-alert', (ov.notRecorded || 0) > 0);
 
                     renderHomeLevelList(data.levels || []);
 
                     // NEW: กราฟสรุปสาเหตุไม่ลงแถว (รวมทุกระดับชั้น + แยกรายระดับชั้น)
                     lastPublicDashboardData = data;
                     renderAllHomeCharts(data);
+
+                    if (liveText) {
+                        const now = new Date();
+                        const hh = String(now.getHours()).padStart(2, '0');
+                        const mm = String(now.getMinutes()).padStart(2, '0');
+                        const ss = String(now.getSeconds()).padStart(2, '0');
+                        liveText.textContent = `อัปเดตล่าสุด ${hh}:${mm}:${ss}`;
+                    }
                 })
                 .catch(err => {
                     if (levelListEl) levelListEl.innerHTML = `<p class="text-xs text-rose-500 text-center py-6">ผิดพลาด: ${err}</p>`;
+                    if (liveText) liveText.textContent = 'เชื่อมต่อไม่สำเร็จ';
+                })
+                .finally(() => {
+                    if (refreshIcon) setTimeout(() => refreshIcon.classList.remove('refresh-spinning'), 400);
                 });
         }
+
+        // ✨ NEW: อนิเมชั่นตัวเลขไล่นับขึ้น ให้ตัวเลขสรุปดูมีชีวิตชีวาเวลาข้อมูลอัปเดต
+        function animateCountUp(id, target) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            target = Number(target) || 0;
+            const start = Number(el.textContent.replace(/[^0-9.-]/g, '')) || 0;
+            if (start === target) { el.textContent = target; return; }
+            const duration = 600;
+            const startTime = performance.now();
+            function tick(now) {
+                const progress = Math.min((now - startTime) / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(start + (target - start) * eased);
+                el.textContent = current;
+                if (progress < 1) requestAnimationFrame(tick);
+                else el.textContent = target;
+            }
+            requestAnimationFrame(tick);
+        }
+
+        // 🆕 รีเฟรชข้อมูล Dashboard สาธารณะอัตโนมัติทุก 2 นาที เพื่อให้หน้าจอที่เปิดค้างไว้ (เช่น จอโปรเจกเตอร์หน้าห้อง) เห็นข้อมูลล่าสุดเสมอ
+        setInterval(() => {
+            const homeTabEl = document.getElementById('home-tab');
+            if (homeTabEl && !homeTabEl.classList.contains('hidden')) {
+                loadPublicDashboard();
+            }
+        }, 120000);
 
         // 🛠️ รวมการวาดกราฟทั้งหมดของหน้าหลักไว้ที่เดียว เพื่อให้เรียกซ้ำได้ง่าย
         // (ใช้ตอนโหลดข้อมูลปกติ และใช้ตอน Chart.js เพิ่งโหลดสำเร็จช้าจากแหล่งสำรอง)
@@ -2001,9 +2198,10 @@ select {
             if (lastPublicDashboardData) renderAllHomeCharts(lastPublicDashboardData);
         });
 
-        function setText(id, value) {
+        function setText(id, value, asHtml) {
             const el = document.getElementById(id);
-            if (el) el.textContent = value;
+            if (!el) return;
+            if (asHtml) el.innerHTML = value; else el.textContent = value;
         }
 
         function formatThaiDateLabel(dateStr) {
@@ -2027,35 +2225,74 @@ select {
             const chartData = hasData ? [present, absent, pending] : [1, 0, 0];
             const chartColors = hasData ? ['#059669', '#cd0000', '#cbd5e1'] : ['#e2e8f0', '#e2e8f0', '#e2e8f0'];
 
+            const totalForCenter = present + absent + pending;
+
             if (homeDonutChart) {
                 homeDonutChart.data.datasets[0].data = chartData;
                 homeDonutChart.data.datasets[0].backgroundColor = chartColors;
+                homeDonutChart.__centerTotal = totalForCenter;
                 homeDonutChart.update();
                 forceChartResize(homeDonutChart);
                 return;
             }
 
+            // ✨ NEW: ปลั๊กอินวาดตัวเลขรวมตรงกลางโดนัท ให้เห็นภาพรวมชัดเจนในแวบเดียว
+            const centerTextPlugin = {
+                id: 'centerTextPlugin',
+                afterDraw(chart) {
+                    if (chart.config.type !== 'doughnut') return;
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) return;
+                    const cx = (chartArea.left + chartArea.right) / 2;
+                    const cy = (chartArea.top + chartArea.bottom) / 2;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = "900 26px 'K2D', sans-serif";
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillText(String(chart.__centerTotal || 0), cx, cy - 8);
+                    ctx.font = "700 11px 'K2D', sans-serif";
+                    ctx.fillStyle = '#64748b';
+                    ctx.fillText('รวมทั้งหมด (คน)', cx, cy + 14);
+                    ctx.restore();
+                }
+            };
+
             homeDonutChart = new Chart(canvas.getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['ปฏิบัติหน้าที่', 'ไม่ลงแถว', 'ยังไม่บันทึก'],
+                    labels: ['ปฏิบัติหน้าที่', 'ไม่ลงแถว/โฮมรูม', 'ยังไม่บันทึก'],
                     datasets: [{
                         data: chartData,
                         backgroundColor: chartColors,
                         borderWidth: 3,
-                        borderColor: '#ffffff'
+                        borderColor: '#ffffff',
+                        hoverOffset: 8
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     cutout: '68%',
+                    animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutCubic' },
                     plugins: {
                         legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, family: 'K2D' } } },
-                        tooltip: { enabled: true }
+                        tooltip: { enabled: true },
+                        datalabels: hasData ? {
+                            color: '#fff',
+                            font: { size: 11, weight: '700', family: 'K2D' },
+                            textAlign: 'center',
+                            formatter: (value, ctx) => {
+                                if (!value) return '';
+                                const pct = totalForCenter > 0 ? Math.round((value / totalForCenter) * 100) : 0;
+                                return [`${value}`, `(${pct}%)`];
+                            }
+                        } : { display: false }
                     }
-                }
+                },
+                plugins: [centerTextPlugin]
             });
+            homeDonutChart.__centerTotal = totalForCenter;
             forceChartResize(homeDonutChart);
         }
 
@@ -2085,7 +2322,7 @@ select {
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-xs sm:text-sm font-bold text-slate-800">${lv.level}</span>
                         <span class="text-[10px] sm:text-xs text-slate-400 font-medium">
-                            ปฏิบัติหน้าที่ ${lv.present}/${lv.total} • ไม่ลงแถว ${lv.absent} • ยังไม่บันทึก ${lv.notRecorded}
+                            ปฏิบัติหน้าที่ ${lv.present}/${lv.total} • ไม่ลงแถว/โฮมรูม ${lv.absent} • ยังไม่บันทึก ${lv.notRecorded}
                         </span>
                     </div>
                     <div class="level-bar-track">
@@ -2099,7 +2336,7 @@ select {
         }
 
         // =================================================================
-        // 📊 NEW: กราฟสรุปสาเหตุ "ไม่ลงแถว" (รวมทุกระดับชั้น + แยกรายระดับชั้น)
+        // 📊 NEW: กราฟสรุปสาเหตุ "ไม่ลงแถว/โฮมรูม" (รวมทุกระดับชั้น + แยกรายระดับชั้น)
         // =================================================================
         let homeReasonOverallChart = null;
         let homeReasonLevelChart = null;
@@ -2108,9 +2345,11 @@ select {
         const REASON_DISPLAY_MAP = { 'สาย': 'มาสาย' };
         const REASON_COLOR_MAP = {
             'ปฏิบัติหน้าที่': '#059669',
+            'ขออนุญาต': '#06b6d4',
             'ลาป่วย': '#f59e0b',
             'ลากิจ': '#f97316',
             'สาย': '#eab308',
+            'ประชุม': '#8b5cf6',
             'ไปราชการ': '#3b82f6',
             'ยังไม่บันทึก': '#cbd5e1',
             'ไม่ระบุเหตุผล': '#94a3b8'
@@ -2160,6 +2399,7 @@ select {
             const labels = items.map(it => it.label);
             const data = items.map(it => hasData ? it.count : 0);
             const colors = items.map((it, idx) => getReasonColor(it.key, idx));
+            const percents = items.map(it => hasData ? it.percent : 0);
 
             const newChart = new Chart(canvas.getContext('2d'), {
                 type: 'bar',
@@ -2175,9 +2415,23 @@ select {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 800, easing: 'easeOutCubic' },
+                    layout: { padding: { top: 26 } },
                     plugins: {
                         legend: { display: false },
-                        tooltip: { enabled: true }
+                        tooltip: { enabled: true },
+                        datalabels: hasData ? {
+                            anchor: 'end',
+                            align: 'top',
+                            offset: 2,
+                            color: '#334155',
+                            font: { size: 10, weight: '700', family: 'K2D' },
+                            formatter: (value, ctx) => {
+                                if (!value) return '';
+                                const pct = percents[ctx.dataIndex] || 0;
+                                return `${value} (${pct}%)`;
+                            }
+                        } : { display: false }
                     },
                     scales: {
                         x: { ticks: { font: { size: 10, family: 'K2D' } } },
@@ -2199,14 +2453,19 @@ select {
             }
 
             container.innerHTML = items.map((it, idx) => `
-                <div class="flex items-center justify-between gap-2 bg-slate-50/70 border border-slate-100 rounded-lg px-3 py-2">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${getReasonColor(it.key, idx)}"></span>
-                        <span class="text-xs font-semibold text-slate-700 truncate">${it.label}</span>
+                <div class="bg-slate-50/70 border border-slate-100 rounded-lg px-3 py-2 hover:bg-white hover:shadow-xs transition">
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${getReasonColor(it.key, idx)}"></span>
+                            <span class="text-xs font-semibold text-slate-700 truncate">${it.label}</span>
+                        </div>
+                        <div class="flex items-baseline gap-1.5 shrink-0">
+                            <span class="text-sm font-black text-slate-900">${it.count}</span>
+                            <span class="text-[10px] font-bold text-slate-400">(${it.percent}%)</span>
+                        </div>
                     </div>
-                    <div class="flex items-baseline gap-1.5 shrink-0">
-                        <span class="text-sm font-black text-slate-900">${it.count}</span>
-                        <span class="text-[10px] font-bold text-slate-400">(${it.percent}%)</span>
+                    <div class="level-bar-track" style="height:6px;">
+                        <div style="width:${it.percent}%; background:${getReasonColor(it.key, idx)}; height:100%; border-radius:999px; transition:width 1s cubic-bezier(.22,1,.36,1);"></div>
                     </div>
                 </div>
             `).join('');
