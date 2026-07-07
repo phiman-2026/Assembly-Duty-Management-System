@@ -330,10 +330,27 @@ select {
 }
 .admin-grid-table input:focus, .admin-grid-table select:focus{ background:#fff; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
 .admin-grid-table td, .admin-grid-table th{ padding:.4rem .5rem; }
-.admin-row-delete-btn{ color:#cd0000; width:32px; height:32px; border-radius:.6rem; display:flex; align-items:center; justify-content:center; transition:all .15s; cursor:pointer; }
+.admin-row-delete-btn{ color:#cd0000; width:32px; height:32px; border-radius:.6rem; display:flex; align-items:center; justify-content:center; transition:all .15s; cursor:pointer; border:none; background:transparent; }
 .admin-row-delete-btn:hover{ background:#fee2e2; }
+.admin-row-edit-btn{ color:#0001cd; width:32px; height:32px; border-radius:.6rem; display:flex; align-items:center; justify-content:center; transition:all .15s; cursor:pointer; border:none; background:transparent; }
+.admin-row-edit-btn:hover{ background:#e0e1f9; }
+.admin-row-actions{ display:flex; align-items:center; justify-content:center; gap:.35rem; }
+.admin-grid-table tbody tr{ transition:background-color .15s ease; }
+.admin-grid-table tbody tr:hover{ background:#f8fafc; }
+.admin-class-badge{ display:inline-flex; align-items:center; padding:.3rem .7rem; border-radius:999px; font-size:.7rem; font-weight:700; background:#e0e1f9; color:#0001a4; white-space:nowrap; }
+.admin-empty-row td{ padding:1.75rem .5rem !important; text-align:center; color:#94a3b8; font-size:.8rem; font-weight:600; }
 
 #loginModal{ backdrop-filter: blur(4px); }
+
+/* ✨ NEW: การ์ดหลักของ Dashboard แบบมืออาชีพ - ขอบบนไล่สีแบรนด์ + เงาลอยตัวนุ่มนวลกว่าเดิม */
+.dash-card-premium{
+    position:relative;
+    border-top:3px solid transparent;
+    background-image: linear-gradient(#fff,#fff), linear-gradient(90deg,#0001a4 0%,#595ade 50%,#0001a4 100%);
+    background-origin:border-box;
+    background-clip:padding-box, border-box;
+    box-shadow:0 14px 34px -14px rgba(0,1,164,.16), 0 4px 12px -6px rgba(15,23,42,.08);
+}
 
 @media(max-width:768px){
     .stat-card .stat-num{ font-size:1.4rem; }
@@ -465,21 +482,22 @@ select {
             </section>
         </div>
 
-        <!-- ===================== ฟอร์มเพิ่มสมาชิกใหม่ (Admin) ===================== -->
+        <!-- ===================== ฟอร์มเพิ่ม/แก้ไขสมาชิก (Admin) - ใช้การ์ดเดียวกันทั้งเพิ่มและแก้ไข ===================== -->
         <div id="addMemberModal" class="fixed inset-0 bg-blue-950/50 hidden items-center justify-center z-50 p-4">
             <section class="relative max-w-md w-full bg-white rounded-3xl shadow-2xl border border-blue-100 p-6 space-y-5">
                 <button type="button" onclick="closeAddMemberModal()" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
                 <div class="text-center space-y-1">
-                    <div class="bg-blue-50 text-blue-600 w-12 h-12 rounded-full flex items-center justify-center text-xl mx-auto mb-2 shadow-inner">
-                        <i class="fa-solid fa-user-plus"></i>
+                    <div id="memberModalIconWrap" class="bg-blue-50 text-blue-600 w-12 h-12 rounded-full flex items-center justify-center text-xl mx-auto mb-2 shadow-inner">
+                        <i id="memberModalIcon" class="fa-solid fa-user-plus"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900">เพิ่มสมาชิกใหม่</h3>
-                    <p class="text-xs text-slate-400 leading-relaxed">กรอกรายละเอียดสมาชิกใหม่ให้ครบถ้วน แล้วกด "เพิ่มลงรายการ"</p>
+                    <h3 id="memberModalTitle" class="text-lg font-bold text-slate-900">เพิ่มสมาชิกใหม่</h3>
+                    <p id="memberModalDesc" class="text-xs text-slate-400 leading-relaxed">กรอกรายละเอียดสมาชิกใหม่ให้ครบถ้วน แล้วกด "เพิ่มลงรายการ"</p>
                 </div>
 
-                <form id="addMemberForm" onsubmit="event.preventDefault(); confirmAddMember();" class="space-y-4 text-sm">
+                <form id="addMemberForm" onsubmit="event.preventDefault(); confirmMemberModalSubmit();" class="space-y-4 text-sm">
+                    <input type="hidden" id="editMemberIndex" value="">
                     <div>
                         <label class="block font-semibold text-slate-600 mb-1.5">รหัส PIN</label>
                         <input type="text" id="newMemberPin" maxlength="6" placeholder="เช่น 1234" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-hidden focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all">
@@ -492,7 +510,38 @@ select {
                         <label class="block font-semibold text-slate-600 mb-1.5">ระดับที่รับผิดชอบ</label>
                         <select id="newMemberAssignedClass" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-hidden focus:bg-white focus:border-blue-500 transition-all"></select>
                     </div>
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-98">
+                    <button type="submit" id="memberModalSubmitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-98">
+                        <i class="fa-solid fa-plus"></i> เพิ่มลงรายการ
+                    </button>
+                </form>
+            </section>
+        </div>
+
+        <!-- ===================== ฟอร์มเพิ่ม/แก้ไขห้องเรียน (Admin) ===================== -->
+        <div id="classFormModal" class="fixed inset-0 bg-blue-950/50 hidden items-center justify-center z-50 p-4">
+            <section class="relative max-w-md w-full bg-white rounded-3xl shadow-2xl border border-blue-100 p-6 space-y-5">
+                <button type="button" onclick="closeClassFormModal()" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="text-center space-y-1">
+                    <div id="classModalIconWrap" class="bg-blue-50 text-blue-600 w-12 h-12 rounded-full flex items-center justify-center text-xl mx-auto mb-2 shadow-inner">
+                        <i id="classModalIcon" class="fa-solid fa-chalkboard"></i>
+                    </div>
+                    <h3 id="classModalTitle" class="text-lg font-bold text-slate-900">เพิ่มห้องเรียนใหม่</h3>
+                    <p id="classModalDesc" class="text-xs text-slate-400 leading-relaxed">กรอกชื่อห้องเรียนและครูที่ปรึกษา แล้วกด "เพิ่มลงรายการ"</p>
+                </div>
+
+                <form id="classForm" onsubmit="event.preventDefault(); confirmClassModalSubmit();" class="space-y-4 text-sm">
+                    <input type="hidden" id="editClassIndex" value="">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1.5">ห้องเรียน</label>
+                        <input type="text" id="newClassName" placeholder="เช่น ม.1/1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-hidden focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1.5">ชื่อครูที่ปรึกษา</label>
+                        <input type="text" id="newClassTeacher" placeholder="ชื่อ-สกุลครูที่ปรึกษา" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-hidden focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all">
+                    </div>
+                    <button type="submit" id="classModalSubmitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-98">
                         <i class="fa-solid fa-plus"></i> เพิ่มลงรายการ
                     </button>
                 </form>
@@ -502,7 +551,7 @@ select {
         <!-- ===================== หน้าหลัก (Public Dashboard) - ดูได้โดยไม่ต้อง Login ===================== -->
         <section id="home-tab" class="tab-content space-y-6">
 
-            <div class="bg-white rounded-3xl shadow-lg border border-blue-50 p-4 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="dash-card-premium bg-white rounded-3xl border border-blue-50 p-4 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="flex items-center gap-3.5 text-center md:text-left flex-col sm:flex-row">
                     <div class="bg-blue-50 text-blue-600 w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0">
                         <i class="fa-regular fa-calendar-days"></i>
@@ -522,7 +571,7 @@ select {
                 </div>
             </div>
 
-            <div class="bg-white rounded-3xl shadow-lg border border-blue-50 p-3 sm:p-6">
+            <div class="dash-card-premium bg-white rounded-3xl border border-blue-50 p-3 sm:p-6">
                 <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4 flex-wrap">
                     <div class="flex items-center gap-3">
                         <div class="bg-indigo-50 text-indigo-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-chart-pie"></i></div>
@@ -568,10 +617,14 @@ select {
 
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
                     <div class="lg:col-span-2 flex flex-col items-center justify-center bg-slate-50/60 rounded-2xl border border-slate-100 p-4">
+                        <div class="flex items-baseline gap-1.5 mb-1">
+                            <span id="homeDonutTotalNum" class="text-2xl font-black text-slate-900">0</span>
+                            <span class="text-[11px] font-bold text-slate-400">รวมทั้งหมด (คน)</span>
+                        </div>
                         <div class="relative w-full max-w-[220px] mx-auto" style="height:220px;">
                             <canvas id="homeDonutChart"></canvas>
                         </div>
-                        <p class="text-xs text-slate-400 mt-2 text-center">สัดส่วนสถานะการลงแถวรวมทั้งโรงเรียน</p>
+                        <p class="text-xs text-slate-400 mt-2 text-center">สัดส่วนสถานะการลงแถว/โฮมรูมรวมทั้งโรงเรียน</p>
                     </div>
 
                     <div class="lg:col-span-3">
@@ -583,7 +636,7 @@ select {
                 </div>
             </div>
 
-            <div class="bg-white rounded-3xl shadow-lg border border-blue-50 p-3 sm:p-6">
+            <div class="dash-card-premium bg-white rounded-3xl border border-blue-50 p-3 sm:p-6">
                 <div class="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
                     <div class="bg-emerald-50 text-emerald-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-chart-column"></i></div>
                     <div>
@@ -603,13 +656,13 @@ select {
                 </div>
             </div>
 
-            <div class="bg-white rounded-3xl shadow-lg border border-blue-50 p-3 sm:p-6">
+            <div class="dash-card-premium bg-white rounded-3xl border border-blue-50 p-3 sm:p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
                     <div class="flex items-center gap-3">
                         <div class="bg-indigo-50 text-indigo-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-chart-simple"></i></div>
                         <div>
                             <h2 class="text-base sm:text-lg font-bold text-slate-900">กราฟแยกรายระดับชั้น</h2>
-                            <p class="text-xs text-slate-400 mt-0.5">ปฏิบัติหน้าที่ / ไม่ลงแถว แบ่งตามสาเหตุ ตามระดับชั้นที่เลือก</p>
+                            <p class="text-xs text-slate-400 mt-0.5">ปฏิบัติหน้าที่ / ไม่ลงแถว/โฮมรูม แบ่งตามสาเหตุ ตามระดับชั้นที่เลือก</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
@@ -640,7 +693,9 @@ select {
                         <div class="flex items-center gap-3">
                             <div class="bg-blue-50 text-blue-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-calendar-day"></i></div>
                             <div>
-                                <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">สรุปการลงแถวประจำวันนี้</h2>
+                                <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">สรุปการลงแถว ไม่ลงแถว/โฮมรูม
+
+ประจำวันนี้</h2>
                                 <p class="text-xs text-slate-400 mt-0.5">รายละเอียดข้อมูลสถานะและเวลาบันทึกรายบุคคล</p>
                             </div>
                         </div>
@@ -685,7 +740,7 @@ select {
                         <div class="flex items-center gap-3">
                             <div class="bg-blue-50 text-blue-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-clipboard-user"></i></div>
                             <div>
-                                <h3 class="text-base sm:text-lg font-bold text-slate-900">บันทึกเวลาปฏิบัติหน้าที่ลงแถว</h3>
+                                <h3 class="text-base sm:text-lg font-bold text-slate-900">บันทึกเวลาปฏิบัติหน้าที่ลงแถว ไม่ลงแถว/โฮมรูม </h3>
                                 <p class="text-xs text-slate-400 mt-0.5">เลือกห้องเรียนระดับชั้นเพื่อบันทึกสถานะการลงแถว</p>
                             </div>
                         </div>
@@ -749,7 +804,7 @@ select {
                         <div class="flex items-center gap-3">
                             <div class="bg-blue-50 text-blue-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-chart-column"></i></div>
                             <div>
-                                <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">สถิติรายงานการปฏิบัติหน้าที่ลงแถว</h2>
+                                <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">สถิติรายงานการปฏิบัติหน้าที่ลงแถว ไม่ลงแถว/โฮมรูม </h2>
                                 <p class="text-xs text-slate-400 mt-0.5">สรุปจำนวนรวมการลงแถวและการขาดแยกรายคนสะสม</p>
                             </div>
                         </div>
@@ -825,7 +880,7 @@ select {
             </section>
 
             <section id="admin-tab" class="tab-content hidden space-y-5">
-                <div class="bg-white rounded-3xl shadow-lg border border-blue-50 p-3 sm:p-6">
+                <div class="dash-card-premium bg-white rounded-3xl border border-blue-50 p-3 sm:p-6">
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
                         <div class="flex items-center gap-3">
                             <div class="bg-amber-50 text-amber-600 w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner"><i class="fa-solid fa-user-shield"></i></div>
@@ -852,14 +907,18 @@ select {
                                 <button type="button" onclick="addMemberRow()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold px-3 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> เพิ่มสมาชิก</button>
                             </div>
                         </div>
+                        <div class="relative max-w-xs">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="memberSearchInput" oninput="renderMembersTable()" placeholder="ค้นหาชื่อสมาชิก..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs sm:text-sm font-medium shadow-2xs focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden transition">
+                        </div>
                         <div class="w-full overflow-x-auto rounded-xl border border-blue-50 shadow-2xs">
                             <table class="admin-grid-table w-full text-left border-collapse min-w-[560px]">
                                 <thead>
                                     <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600">
-                                        <th class="w-[25%]">รหัส PIN</th>
+                                        <th class="w-[22%]">รหัส PIN</th>
                                         <th class="w-[35%]">ชื่อ-สกุล</th>
-                                        <th class="w-[30%]">ระดับที่รับผิดชอบ</th>
-                                        <th class="w-[10%] text-center">ลบ</th>
+                                        <th class="w-[25%]">ระดับที่รับผิดชอบ</th>
+                                        <th class="w-[18%] text-center">จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody id="membersTableBody"></tbody>
@@ -883,13 +942,17 @@ select {
                                 <button type="button" onclick="addClassRow()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold px-3 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> เพิ่มห้องเรียน</button>
                             </div>
                         </div>
+                        <div class="relative max-w-xs">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="classSearchInput" oninput="renderClassTable()" placeholder="ค้นหาชื่อครูที่ปรึกษา..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs sm:text-sm font-medium shadow-2xs focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden transition">
+                        </div>
                         <div class="w-full overflow-x-auto rounded-xl border border-blue-50 shadow-2xs">
                             <table class="admin-grid-table w-full text-left border-collapse min-w-[480px]">
                                 <thead>
                                     <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600">
-                                        <th class="w-[35%]">ห้องเรียน (เช่น ม.1/1)</th>
-                                        <th class="w-[55%]">ชื่อครูที่ปรึกษา</th>
-                                        <th class="w-[10%] text-center">ลบ</th>
+                                        <th class="w-[30%]">ห้องเรียน (เช่น ม.1/1)</th>
+                                        <th class="w-[45%]">ชื่อครูที่ปรึกษา</th>
+                                        <th class="w-[25%] text-center">จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody id="classesTableBody"></tbody>
@@ -2133,7 +2196,7 @@ select {
 
                     renderHomeLevelList(data.levels || []);
 
-                    // NEW: กราฟสรุปสาเหตุไม่ลงแถว (รวมทุกระดับชั้น + แยกรายระดับชั้น)
+                    // NEW: กราฟสรุปสาเหตุไม่ลงแถว/โฮมรูม (รวมทุกระดับชั้น + แยกรายระดับชั้น)
                     lastPublicDashboardData = data;
                     renderAllHomeCharts(data);
 
@@ -2213,6 +2276,17 @@ select {
             return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} พ.ศ. ${d.getFullYear() + 543}`;
         }
 
+        // 🎨 เลือกสีตัวเลขกำกับให้ตัดกับสีพื้นหลังของชิ้นกราฟเสมอ (สว่างเกินไปใช้ตัวอักษรเข้ม, มืดพอใช้ตัวอักษรขาว)
+        // แก้ปัญหาตัวเลขมองไม่เห็นตอนพื้นหลังสีอ่อน (เช่น สีเทา "ยังไม่บันทึก")
+        function getReadableLabelColor(hexColor) {
+            const hex = (hexColor || '#94a3b8').replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            return brightness > 165 ? '#1e293b' : '#ffffff';
+        }
+
         function renderHomeDonutChart(overall) {
             const canvas = document.getElementById('homeDonutChart');
             if (!canvas || typeof Chart === 'undefined') return;
@@ -2223,43 +2297,25 @@ select {
             const hasData = (present + absent + pending) > 0;
 
             const chartData = hasData ? [present, absent, pending] : [1, 0, 0];
-            const chartColors = hasData ? ['#059669', '#cd0000', '#cbd5e1'] : ['#e2e8f0', '#e2e8f0', '#e2e8f0'];
+            const chartColors = hasData ? ['#059669', '#cd0000', '#94a3b8'] : ['#e2e8f0', '#e2e8f0', '#e2e8f0'];
+            const labelColors = chartColors.map(getReadableLabelColor);
 
             const totalForCenter = present + absent + pending;
+            const totalEl = document.getElementById('homeDonutTotalNum');
+            if (totalEl) totalEl.textContent = totalForCenter;
 
             if (homeDonutChart) {
                 homeDonutChart.data.datasets[0].data = chartData;
                 homeDonutChart.data.datasets[0].backgroundColor = chartColors;
-                homeDonutChart.__centerTotal = totalForCenter;
+                homeDonutChart.options.plugins.datalabels.color = (ctx) => labelColors[ctx.dataIndex] || '#1e293b';
                 homeDonutChart.update();
                 forceChartResize(homeDonutChart);
                 return;
             }
 
-            // ✨ NEW: ปลั๊กอินวาดตัวเลขรวมตรงกลางโดนัท ให้เห็นภาพรวมชัดเจนในแวบเดียว
-            const centerTextPlugin = {
-                id: 'centerTextPlugin',
-                afterDraw(chart) {
-                    if (chart.config.type !== 'doughnut') return;
-                    const { ctx, chartArea } = chart;
-                    if (!chartArea) return;
-                    const cx = (chartArea.left + chartArea.right) / 2;
-                    const cy = (chartArea.top + chartArea.bottom) / 2;
-                    ctx.save();
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.font = "900 26px 'K2D', sans-serif";
-                    ctx.fillStyle = '#0f172a';
-                    ctx.fillText(String(chart.__centerTotal || 0), cx, cy - 8);
-                    ctx.font = "700 11px 'K2D', sans-serif";
-                    ctx.fillStyle = '#64748b';
-                    ctx.fillText('รวมทั้งหมด (คน)', cx, cy + 14);
-                    ctx.restore();
-                }
-            };
-
+            // 🥧 เปลี่ยนจากกราฟโดนัทเป็นกราฟวงกลม (Pie) เต็มวง ตามที่ผู้ใช้งานต้องการ
             homeDonutChart = new Chart(canvas.getContext('2d'), {
-                type: 'doughnut',
+                type: 'pie',
                 data: {
                     labels: ['ปฏิบัติหน้าที่', 'ไม่ลงแถว/โฮมรูม', 'ยังไม่บันทึก'],
                     datasets: [{
@@ -2267,21 +2323,22 @@ select {
                         backgroundColor: chartColors,
                         borderWidth: 3,
                         borderColor: '#ffffff',
-                        hoverOffset: 8
+                        hoverOffset: 10
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '68%',
                     animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutCubic' },
                     plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, family: 'K2D' } } },
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, family: 'K2D', weight: '600' }, padding: 12 } },
                         tooltip: { enabled: true },
                         datalabels: hasData ? {
-                            color: '#fff',
-                            font: { size: 11, weight: '700', family: 'K2D' },
+                            color: (ctx) => labelColors[ctx.dataIndex] || '#1e293b',
+                            font: { size: 12, weight: '800', family: 'K2D' },
                             textAlign: 'center',
+                            textStrokeColor: 'rgba(0,0,0,0.18)',
+                            textStrokeWidth: 2,
                             formatter: (value, ctx) => {
                                 if (!value) return '';
                                 const pct = totalForCenter > 0 ? Math.round((value / totalForCenter) * 100) : 0;
@@ -2289,10 +2346,8 @@ select {
                             }
                         } : { display: false }
                     }
-                },
-                plugins: [centerTextPlugin]
+                }
             });
-            homeDonutChart.__centerTotal = totalForCenter;
             forceChartResize(homeDonutChart);
         }
 
@@ -2537,6 +2592,11 @@ select {
         }
 
         // ---------------- จัดการสมาชิก (Config) ----------------
+        // 🛠️ ปรับปรุงใหม่: ใช้ membersData เป็น "ข้อมูลต้นทาง" เดียว (single source of truth)
+        //    ตารางจะแสดงผลแบบอ่านอย่างเดียว + ปุ่ม "แก้ไข" (เปิดการ์ดฟอร์ม) และ "ลบ" (มี popup ยืนยันก่อนเสมอ)
+        //    ช่องค้นหาชื่อช่วยกรองรายการที่แสดง โดยไม่กระทบข้อมูลจริงที่จะบันทึก
+        let membersData = [];
+
         function loadMembers() {
             if (!adminGuardOrAlert()) return;
             showLoading(true);
@@ -2550,19 +2610,47 @@ select {
                     Swal.fire({ title: 'โหลดข้อมูลไม่สำเร็จ', text: res.msg || 'ไม่ทราบสาเหตุ', icon: 'error', confirmButtonColor: '#0001cd' });
                     return;
                 }
-                renderMembersTable(res.members || []);
+                membersData = (res.members || []).map(m => ({ pin: m.pin || '', fullName: m.fullName || '', assignedClass: m.assignedClass || 'ALL' }));
+                const searchInp = document.getElementById('memberSearchInput');
+                if (searchInp) searchInp.value = '';
+                renderMembersTable();
                 clearAdminDirty();
             })
             .catch(err => Swal.fire({ title: 'เกิดข้อผิดพลาด', text: err.toString(), icon: 'error', confirmButtonColor: '#0001cd' }))
             .finally(() => showLoading(false));
         }
 
-        function renderMembersTable(members) {
+        function renderMembersTable() {
             const tbody = document.getElementById('membersTableBody');
             if (!tbody) return;
+            const keyword = ((document.getElementById('memberSearchInput') || {}).value || '').trim().toLowerCase();
+
             tbody.innerHTML = '';
-            members.forEach(m => appendMemberRow(m.pin, m.fullName, m.assignedClass));
-            if (members.length === 0) appendMemberRow('', '', 'ALL');
+            let shown = 0;
+            membersData.forEach((m, idx) => {
+                if (keyword && !(m.fullName || '').toLowerCase().includes(keyword) && !(m.pin || '').toLowerCase().includes(keyword)) return;
+                shown++;
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-100";
+                const classLabel = m.assignedClass === 'ALL' ? 'ผู้ดูแลระบบ (ALL)' : (m.assignedClass || '-');
+                tr.innerHTML = `
+                    <td class="font-mono font-bold text-slate-700">${m.pin || '-'}</td>
+                    <td class="font-semibold text-slate-800">${m.fullName || '-'}</td>
+                    <td><span class="admin-class-badge">${classLabel}</span></td>
+                    <td class="admin-row-actions">
+                        <button type="button" onclick="openEditMemberModal(${idx})" title="แก้ไข" class="admin-row-edit-btn"><i class="fa-solid fa-pen"></i></button>
+                        <button type="button" onclick="confirmDeleteMember(${idx})" title="ลบ" class="admin-row-delete-btn"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (shown === 0) {
+                const tr = document.createElement('tr');
+                tr.className = "admin-empty-row";
+                tr.innerHTML = `<td colspan="4">${keyword ? 'ไม่พบสมาชิกที่ตรงกับคำค้นหา' : 'ยังไม่มีข้อมูลสมาชิกในระบบ'}</td>`;
+                tbody.appendChild(tr);
+            }
         }
 
         function buildAssignedClassOptions(selectedValue) {
@@ -2576,27 +2664,18 @@ select {
             return opts;
         }
 
-        function appendMemberRow(pin, fullName, assignedClass) {
-            const tbody = document.getElementById('membersTableBody');
-            if (!tbody) return;
-            const tr = document.createElement('tr');
-            tr.className = "border-b border-slate-100";
-            tr.innerHTML = `
-                <td><input type="text" class="member-pin" value="${pin || ''}" placeholder="เช่น 1234" maxlength="6" oninput="markAdminDirty()"></td>
-                <td><input type="text" class="member-fullname" value="${fullName || ''}" placeholder="ชื่อ-สกุล" oninput="markAdminDirty()"></td>
-                <td><select class="member-assignedclass" onchange="markAdminDirty()">${buildAssignedClassOptions(assignedClass || 'ALL')}</select></td>
-                <td class="text-center"><span class="admin-row-delete-btn" onclick="this.closest('tr').remove(); markAdminDirty();"><i class="fa-solid fa-trash"></i></span></td>
-            `;
-            tbody.appendChild(tr);
-        }
-
-        // 🛠️ ตามที่ผู้ดูแลระบบต้องการ: กดปุ่ม "เพิ่มสมาชิก" แล้วให้ขึ้นฟอร์มกรอกรายละเอียดก่อน
-        //    แทนที่จะเพิ่มแถวว่างในตารางให้กรอกทันที
+        // 🛠️ กดปุ่ม "เพิ่มสมาชิก" แล้วขึ้นการ์ดฟอร์มให้กรอกรายละเอียดก่อนเสมอ (ไม่แก้ในตารางโดยตรง)
         function addMemberRow() {
             openAddMemberModal();
         }
 
         function openAddMemberModal() {
+            document.getElementById('editMemberIndex').value = '';
+            document.getElementById('memberModalIcon').className = 'fa-solid fa-user-plus';
+            document.getElementById('memberModalTitle').textContent = 'เพิ่มสมาชิกใหม่';
+            document.getElementById('memberModalDesc').textContent = 'กรอกรายละเอียดสมาชิกใหม่ให้ครบถ้วน แล้วกด "เพิ่มลงรายการ"';
+            document.getElementById('memberModalSubmitBtn').innerHTML = '<i class="fa-solid fa-plus"></i> เพิ่มลงรายการ';
+
             const pinInp = document.getElementById('newMemberPin');
             const nameInp = document.getElementById('newMemberFullname');
             const classSel = document.getElementById('newMemberAssignedClass');
@@ -2609,15 +2688,41 @@ select {
             if (pinInp) setTimeout(() => pinInp.focus(), 50);
         }
 
+        // ✏️ เปิดการ์ดฟอร์มเดียวกัน แต่เติมข้อมูลเดิมของสมาชิกรายนั้นมาให้แก้ไข
+        function openEditMemberModal(idx) {
+            const m = membersData[idx];
+            if (!m) return;
+
+            document.getElementById('editMemberIndex').value = idx;
+            document.getElementById('memberModalIcon').className = 'fa-solid fa-user-pen';
+            document.getElementById('memberModalTitle').textContent = 'แก้ไขข้อมูลสมาชิก';
+            document.getElementById('memberModalDesc').textContent = `กำลังแก้ไขข้อมูลของ "${m.fullName || '-'}" แก้ไขให้เรียบร้อยแล้วกด "บันทึกการแก้ไข"`;
+            document.getElementById('memberModalSubmitBtn').innerHTML = '<i class="fa-solid fa-check"></i> บันทึกการแก้ไข';
+
+            const pinInp = document.getElementById('newMemberPin');
+            const nameInp = document.getElementById('newMemberFullname');
+            const classSel = document.getElementById('newMemberAssignedClass');
+            if (pinInp) pinInp.value = m.pin || '';
+            if (nameInp) nameInp.value = m.fullName || '';
+            if (classSel) classSel.innerHTML = buildAssignedClassOptions(m.assignedClass || 'ALL');
+
+            const modal = document.getElementById('addMemberModal');
+            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+            if (pinInp) setTimeout(() => pinInp.focus(), 50);
+        }
+
         function closeAddMemberModal() {
             const modal = document.getElementById('addMemberModal');
             if (modal) { modal.classList.remove('flex'); modal.classList.add('hidden'); }
         }
 
-        function confirmAddMember() {
+        // 🛠️ ใช้ฟังก์ชันเดียวจัดการทั้งกรณี "เพิ่มใหม่" และ "แก้ไข" โดยดูจาก editMemberIndex
+        function confirmMemberModalSubmit() {
             const pin = (document.getElementById('newMemberPin').value || '').trim();
             const fullName = (document.getElementById('newMemberFullname').value || '').trim();
             const assignedClass = document.getElementById('newMemberAssignedClass').value;
+            const editIdxRaw = document.getElementById('editMemberIndex').value;
+            const isEditing = editIdxRaw !== '';
 
             if (!pin || !fullName) {
                 Swal.fire({
@@ -2629,19 +2734,52 @@ select {
                 return;
             }
 
-            appendMemberRow(pin, fullName, assignedClass);
+            if (isEditing) {
+                const idx = parseInt(editIdxRaw, 10);
+                membersData[idx] = { pin, fullName, assignedClass };
+            } else {
+                membersData.push({ pin, fullName, assignedClass });
+            }
+
             markAdminDirty();
             closeAddMemberModal();
+            renderMembersTable();
+            Swal.fire({
+                title: isEditing ? 'แก้ไขรายการเรียบร้อย' : 'เพิ่มรายการเรียบร้อย',
+                text: 'อย่าลืมกด "บันทึกการเปลี่ยนแปลงทั้งหมด" เพื่อบันทึกข้อมูลเข้าระบบจริง',
+                icon: 'success',
+                confirmButtonColor: '#0001cd',
+                timer: 2200,
+                timerProgressBar: true
+            });
+        }
+
+        // 🗑️ ลบสมาชิก: ต้องขึ้น popup ยืนยันก่อนเสมอ ป้องกันการลบพลาดโดยไม่ตั้งใจ
+        function confirmDeleteMember(idx) {
+            const m = membersData[idx];
+            if (!m) return;
+            Swal.fire({
+                title: 'ยืนยันการลบสมาชิก?',
+                html: `ต้องการลบ <b>${m.fullName || '-'}</b> ออกจากรายชื่อสมาชิกใช่หรือไม่<br><span style="font-size:.75rem;color:#94a3b8;">การลบจะมีผลจริงหลังกด "บันทึกการเปลี่ยนแปลงทั้งหมด"</span>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-trash"></i> ลบรายการนี้',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#cd0000',
+                cancelButtonColor: '#94a3b8',
+                reverseButtons: true
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                membersData.splice(idx, 1);
+                markAdminDirty();
+                renderMembersTable();
+                Swal.fire({ title: 'ลบรายการแล้ว', icon: 'success', confirmButtonColor: '#0001cd', timer: 1600, timerProgressBar: true });
+            });
         }
 
         function saveMembersAll() {
             if (!adminGuardOrAlert()) return;
-            const rows = document.querySelectorAll('#membersTableBody tr');
-            const members = Array.from(rows).map(row => ({
-                pin: row.querySelector('.member-pin').value.trim(),
-                fullName: row.querySelector('.member-fullname').value.trim(),
-                assignedClass: row.querySelector('.member-assignedclass').value
-            }));
+            const members = membersData.map(m => ({ pin: (m.pin || '').trim(), fullName: (m.fullName || '').trim(), assignedClass: m.assignedClass }));
 
             const btn = document.getElementById('saveMembersBtn');
             const originalHtml = btn ? btn.innerHTML : '';
@@ -2666,6 +2804,10 @@ select {
         }
 
         // ---------------- จัดการชั้นเรียน/ห้องเรียน (Teachers) ----------------
+        // 🛠️ ปรับปรุงใหม่ในรูปแบบเดียวกับหน้าจัดการสมาชิก: classesData เป็นข้อมูลต้นทาง
+        //    แสดงผลแบบอ่านอย่างเดียว + ปุ่มแก้ไข (เปิดการ์ดฟอร์ม) / ลบ (มี popup ยืนยัน) + ช่องค้นหาชื่อครู
+        let classesData = [];
+
         function loadClassStructure() {
             if (!adminGuardOrAlert()) return;
             showLoading(true);
@@ -2679,46 +2821,155 @@ select {
                     Swal.fire({ title: 'โหลดข้อมูลไม่สำเร็จ', text: res.msg || 'ไม่ทราบสาเหตุ', icon: 'error', confirmButtonColor: '#0001cd' });
                     return;
                 }
-                renderClassTable(res.classes || []);
+                classesData = (res.classes || []).map(c => ({ className: c.className || '', teacherName: c.teacherName || '' }));
+                const searchInp = document.getElementById('classSearchInput');
+                if (searchInp) searchInp.value = '';
+                renderClassTable();
                 clearAdminDirty();
             })
             .catch(err => Swal.fire({ title: 'เกิดข้อผิดพลาด', text: err.toString(), icon: 'error', confirmButtonColor: '#0001cd' }))
             .finally(() => showLoading(false));
         }
 
-        function renderClassTable(classes) {
+        function renderClassTable() {
             const tbody = document.getElementById('classesTableBody');
             if (!tbody) return;
-            tbody.innerHTML = '';
-            classes.forEach(c => appendClassRow(c.className, c.teacherName));
-            if (classes.length === 0) appendClassRow('', '');
-        }
+            const keyword = ((document.getElementById('classSearchInput') || {}).value || '').trim().toLowerCase();
 
-        function appendClassRow(className, teacherName) {
-            const tbody = document.getElementById('classesTableBody');
-            if (!tbody) return;
-            const tr = document.createElement('tr');
-            tr.className = "border-b border-slate-100";
-            tr.innerHTML = `
-                <td><input type="text" class="class-name" value="${className || ''}" placeholder="เช่น ม.1/1" oninput="markAdminDirty()"></td>
-                <td><input type="text" class="class-teacher" value="${teacherName || ''}" placeholder="ชื่อครูที่ปรึกษา" oninput="markAdminDirty()"></td>
-                <td class="text-center"><span class="admin-row-delete-btn" onclick="this.closest('tr').remove(); markAdminDirty();"><i class="fa-solid fa-trash"></i></span></td>
-            `;
-            tbody.appendChild(tr);
+            tbody.innerHTML = '';
+            let shown = 0;
+            classesData.forEach((c, idx) => {
+                if (keyword && !(c.teacherName || '').toLowerCase().includes(keyword) && !(c.className || '').toLowerCase().includes(keyword)) return;
+                shown++;
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-100";
+                tr.innerHTML = `
+                    <td><span class="admin-class-badge">${c.className || '-'}</span></td>
+                    <td class="font-semibold text-slate-800">${c.teacherName || '-'}</td>
+                    <td class="admin-row-actions">
+                        <button type="button" onclick="openEditClassModal(${idx})" title="แก้ไข" class="admin-row-edit-btn"><i class="fa-solid fa-pen"></i></button>
+                        <button type="button" onclick="confirmDeleteClass(${idx})" title="ลบ" class="admin-row-delete-btn"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (shown === 0) {
+                const tr = document.createElement('tr');
+                tr.className = "admin-empty-row";
+                tr.innerHTML = `<td colspan="3">${keyword ? 'ไม่พบห้องเรียน/ครูที่ปรึกษาที่ตรงกับคำค้นหา' : 'ยังไม่มีข้อมูลห้องเรียนในระบบ'}</td>`;
+                tbody.appendChild(tr);
+            }
         }
 
         function addClassRow() {
-            appendClassRow('', '');
+            openAddClassModal();
+        }
+
+        function openAddClassModal() {
+            document.getElementById('editClassIndex').value = '';
+            document.getElementById('classModalIcon').className = 'fa-solid fa-chalkboard';
+            document.getElementById('classModalTitle').textContent = 'เพิ่มห้องเรียนใหม่';
+            document.getElementById('classModalDesc').textContent = 'กรอกชื่อห้องเรียนและครูที่ปรึกษา แล้วกด "เพิ่มลงรายการ"';
+            document.getElementById('classModalSubmitBtn').innerHTML = '<i class="fa-solid fa-plus"></i> เพิ่มลงรายการ';
+
+            const nameInp = document.getElementById('newClassName');
+            const teacherInp = document.getElementById('newClassTeacher');
+            if (nameInp) nameInp.value = '';
+            if (teacherInp) teacherInp.value = '';
+
+            const modal = document.getElementById('classFormModal');
+            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+            if (nameInp) setTimeout(() => nameInp.focus(), 50);
+        }
+
+        function openEditClassModal(idx) {
+            const c = classesData[idx];
+            if (!c) return;
+
+            document.getElementById('editClassIndex').value = idx;
+            document.getElementById('classModalIcon').className = 'fa-solid fa-pen-to-square';
+            document.getElementById('classModalTitle').textContent = 'แก้ไขข้อมูลห้องเรียน';
+            document.getElementById('classModalDesc').textContent = `กำลังแก้ไขข้อมูลของห้อง "${c.className || '-'}" แก้ไขให้เรียบร้อยแล้วกด "บันทึกการแก้ไข"`;
+            document.getElementById('classModalSubmitBtn').innerHTML = '<i class="fa-solid fa-check"></i> บันทึกการแก้ไข';
+
+            const nameInp = document.getElementById('newClassName');
+            const teacherInp = document.getElementById('newClassTeacher');
+            if (nameInp) nameInp.value = c.className || '';
+            if (teacherInp) teacherInp.value = c.teacherName || '';
+
+            const modal = document.getElementById('classFormModal');
+            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+            if (nameInp) setTimeout(() => nameInp.focus(), 50);
+        }
+
+        function closeClassFormModal() {
+            const modal = document.getElementById('classFormModal');
+            if (modal) { modal.classList.remove('flex'); modal.classList.add('hidden'); }
+        }
+
+        function confirmClassModalSubmit() {
+            const className = (document.getElementById('newClassName').value || '').trim();
+            const teacherName = (document.getElementById('newClassTeacher').value || '').trim();
+            const editIdxRaw = document.getElementById('editClassIndex').value;
+            const isEditing = editIdxRaw !== '';
+
+            if (!className || !teacherName) {
+                Swal.fire({
+                    title: 'กรอกข้อมูลไม่ครบ',
+                    text: 'กรุณากรอกชื่อห้องเรียนและชื่อครูที่ปรึกษาให้ครบถ้วนก่อนค่ะ',
+                    icon: 'warning',
+                    confirmButtonColor: '#0001cd'
+                });
+                return;
+            }
+
+            if (isEditing) {
+                const idx = parseInt(editIdxRaw, 10);
+                classesData[idx] = { className, teacherName };
+            } else {
+                classesData.push({ className, teacherName });
+            }
+
             markAdminDirty();
+            closeClassFormModal();
+            renderClassTable();
+            Swal.fire({
+                title: isEditing ? 'แก้ไขรายการเรียบร้อย' : 'เพิ่มรายการเรียบร้อย',
+                text: 'อย่าลืมกด "บันทึกการเปลี่ยนแปลงทั้งหมด" เพื่อบันทึกข้อมูลเข้าระบบจริง',
+                icon: 'success',
+                confirmButtonColor: '#0001cd',
+                timer: 2200,
+                timerProgressBar: true
+            });
+        }
+
+        // 🗑️ ลบห้องเรียน: ต้องขึ้น popup ยืนยันก่อนเสมอ ป้องกันการลบพลาดโดยไม่ตั้งใจ
+        function confirmDeleteClass(idx) {
+            const c = classesData[idx];
+            if (!c) return;
+            Swal.fire({
+                title: 'ยืนยันการลบห้องเรียน?',
+                html: `ต้องการลบห้อง <b>${c.className || '-'}</b> (ครูที่ปรึกษา: ${c.teacherName || '-'}) ใช่หรือไม่<br><span style="font-size:.75rem;color:#94a3b8;">การลบจะมีผลจริงหลังกด "บันทึกการเปลี่ยนแปลงทั้งหมด"</span>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-trash"></i> ลบรายการนี้',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#cd0000',
+                cancelButtonColor: '#94a3b8',
+                reverseButtons: true
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                classesData.splice(idx, 1);
+                markAdminDirty();
+                renderClassTable();
+                Swal.fire({ title: 'ลบรายการแล้ว', icon: 'success', confirmButtonColor: '#0001cd', timer: 1600, timerProgressBar: true });
+            });
         }
 
         function saveClassAll() {
             if (!adminGuardOrAlert()) return;
-            const rows = document.querySelectorAll('#classesTableBody tr');
-            const classes = Array.from(rows).map(row => ({
-                className: row.querySelector('.class-name').value.trim(),
-                teacherName: row.querySelector('.class-teacher').value.trim()
-            }));
+            const classes = classesData.map(c => ({ className: (c.className || '').trim(), teacherName: (c.teacherName || '').trim() }));
 
             const btn = document.getElementById('saveClassesBtn');
             const originalHtml = btn ? btn.innerHTML : '';
